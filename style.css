@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #faf8f5;
+    -webkit-tap-highlight-color: transparent;
+}
+
+video {
+    transform: scaleX(-1);
+}
+
+.captured-frame {
+    transform: scaleX(-1);
+}
+
+/* Filter Preset CSS */
+.filter-normal { filter: none; }
+.filter-vintage { filter: sepia(0.35) contrast(0.95) brightness(1.05) saturate(1.1); }
+.filter-bw { filter: grayscale(1) contrast(1.15) brightness(1.02); }
+.filter-warm { filter: saturate(1.2) sepia(0.12) brightness(1.03); }
+.filter-cool { filter: hue-rotate(10deg) saturate(1.1) brightness(1.03); }
+
+/* Scrollbar Styling */
+.custom-scrollbar::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+}
+
+/* UI Active Highlight */
+.filter-active {
+    border-color: #475569 !important;
+    font-weight: 700 !important;
+}
+
+.frame-active {
+    border-color: #0f172a !important;
+    box-shadow: 0 0 0 1px #0f172a;
+}
+
+.template-active {
+    border-color: #475569 !important;
+}
+
+@media (max-width: 768px) {
+    .responsive-strip-container {
+        transform: scale(0.88);
+        transform-origin: top center;
+        margin-bottom: -35px;
+    }
+}

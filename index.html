@@ -11,6 +11,14 @@
 </head>
 <body class="text-gray-700 min-h-screen flex flex-col justify-between antialiased selection:bg-rose-100 selection:text-rose-800">
 
+    <svg width="0" height="0" class="absolute block">
+        <defs>
+            <clipPath id="heart-clip" clipPathUnits="objectBoundingBox">
+                <path d="M 0.5,0.292 C 0.382,-0.05 0,0.067 0,0.383 C 0,0.617 0.233,0.767 0.5,0.983 C 0.767,0.767 1,0.617 1,0.383 C 1,0.067 0.618,-0.05 0.5,0.292 Z"></path>
+            </clipPath>
+        </defs>
+    </svg>
+
     <header class="py-3 md:py-4 text-center bg-white/80 backdrop-blur-md shadow-xs sticky top-0 z-50 px-4 border-b border-stone-200/60">
         <h1 class="text-xl md:text-2xl font-bold tracking-wider text-stone-800">ZEETSNAP</h1>
         <p class="text-[10px] md:text-xs text-stone-400 mt-0.5">Bikin momen biasa jadi luar biasa</p>
@@ -30,6 +38,17 @@
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     Slot: <span id="photo-index" class="text-amber-300 font-bold">0</span> / <span id="total-slots-text">4</span>
                 </div>
+            </div>
+
+            <div class="bg-amber-50/50 p-3 rounded-xl border border-amber-200/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="text-left">
+                    <span class="text-xs font-bold text-amber-900 block">Atau Unggah Foto Sendiri</span>
+                    <span class="text-[10px] text-amber-700/80">Pilih foto dari galeri jika tidak ingin mengambil foto langsung</span>
+                </div>
+                <label for="upload-input" class="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl cursor-pointer transition shadow-xs text-center shrink-0">
+                    Pilih Foto
+                </label>
+                <input type="file" id="upload-input" accept="image/*" multiple class="hidden">
             </div>
 
             <div class="grid grid-cols-2 gap-3 bg-stone-50 p-3 rounded-xl border border-stone-100">
@@ -93,6 +112,18 @@
             </div>
 
             <div>
+                <span class="text-xs font-semibold text-stone-400 uppercase tracking-wider block mb-2">Bentuk Frame</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <button data-shape="square" class="btn-shape shape-active py-2 px-3 text-[11px] font-medium rounded-xl border border-stone-300 bg-stone-50 hover:bg-stone-100 transition text-center font-bold">
+                        Persegi Standar
+                    </button>
+                    <button data-shape="heart" class="btn-shape py-2 px-3 text-[11px] font-medium rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition text-center">
+                        Bentuk Love
+                    </button>
+                </div>
+            </div>
+
+            <div>
                 <span class="text-xs font-semibold text-stone-400 uppercase tracking-wider block mb-2">Gaya & Layout Frame</span>
                 <div class="grid grid-cols-3 gap-2">
                     <button data-template="classic" class="btn-template template-active py-2 px-3 text-[11px] font-medium rounded-xl border border-stone-300 bg-stone-50 hover:bg-stone-100 transition text-center font-bold">
@@ -115,6 +146,18 @@
             <div>
                 <span class="text-xs font-semibold text-stone-400 uppercase tracking-wider block mb-2">Warna Frame</span>
                 <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
+                    <button data-color="#ff4d6d" data-footer="Love and Romance" class="btn-frame p-2 text-[11px] font-medium rounded-xl border border-transparent bg-rose-500 text-white flex items-center gap-2 hover:bg-rose-600 transition text-left">
+                        <div class="w-5 h-5 rounded-full bg-rose-600 border border-white/40 shrink-0"></div>
+                        <span class="truncate font-bold">Love Red</span>
+                    </button>
+                    <button data-color="#ffb3c1" data-footer="Sweetheart" class="btn-frame p-2 text-[11px] font-medium rounded-xl border border-transparent bg-pink-100 text-pink-800 flex items-center gap-2 hover:bg-pink-200 transition text-left">
+                        <div class="w-5 h-5 rounded-full bg-pink-300 shrink-0"></div>
+                        <span class="truncate">Sweet Love</span>
+                    </button>
+                    <button data-color="#590d22" data-footer="Endless Love" class="btn-frame p-2 text-[11px] font-medium rounded-xl border border-transparent bg-rose-950 text-rose-100 flex items-center gap-2 hover:bg-rose-900 transition text-left">
+                        <div class="w-5 h-5 rounded-full bg-rose-900 shrink-0"></div>
+                        <span class="truncate">Deep Love</span>
+                    </button>
                     <button data-color="#ffffff" data-footer="Memorable Day" class="btn-frame frame-active p-2 text-[11px] font-medium rounded-xl border border-stone-200 bg-white flex items-center gap-2 hover:border-stone-400 transition text-left">
                         <div class="w-5 h-5 rounded-full bg-white border border-stone-300 shadow-xs shrink-0"></div>
                         <span class="truncate">White</span>
@@ -167,19 +210,19 @@
                 <div id="booth-strip" class="w-[240px] p-4 bg-white shadow-2xl rounded-sm flex flex-col gap-3 transition-all duration-300 relative overflow-hidden border border-stone-200/60 select-none">
                     
                     <div id="photo-slots-container" class="grid grid-cols-1 gap-3 z-0">
-                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group">
+                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group slot-wrapper">
                             <canvas id="canvas-1" class="w-full h-full captured-frame hidden"></canvas>
                             <button data-slot="1" class="btn-retake hidden absolute top-1 right-1 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-md text-[9px] font-bold backdrop-blur-xs transition z-10">Retake</button>
                         </div>
-                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group">
+                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group slot-wrapper">
                             <canvas id="canvas-2" class="w-full h-full captured-frame hidden"></canvas>
                             <button data-slot="2" class="btn-retake hidden absolute top-1 right-1 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-md text-[9px] font-bold backdrop-blur-xs transition z-10">Retake</button>
                         </div>
-                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group">
+                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group slot-wrapper">
                             <canvas id="canvas-3" class="w-full h-full captured-frame hidden"></canvas>
                             <button data-slot="3" class="btn-retake hidden absolute top-1 right-1 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-md text-[9px] font-bold backdrop-blur-xs transition z-10">Retake</button>
                         </div>
-                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group">
+                        <div class="aspect-[4/3] bg-stone-100 rounded-xs overflow-hidden border border-stone-200/30 relative group slot-wrapper">
                             <canvas id="canvas-4" class="w-full h-full captured-frame hidden"></canvas>
                             <button data-slot="4" class="btn-retake hidden absolute top-1 right-1 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-md text-[9px] font-bold backdrop-blur-xs transition z-10">Retake</button>
                         </div>
@@ -198,7 +241,7 @@
                     Unduh Foto
                 </button>
                 <button id="download-gif-btn" disabled class="w-full py-2.5 bg-amber-600 text-white text-xs font-semibold tracking-wide rounded-xl shadow-md hover:bg-amber-700 disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none disabled:cursor-not-allowed transition flex items-center justify-center gap-2">
-                     Unduh gif boomerang
+                    Unduh GIF Boomerang
                 </button>
             </div>
         </section>

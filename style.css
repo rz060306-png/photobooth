@@ -6,22 +6,45 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Mirror Preview Video Kamera agar Alami (seperti cermin) */
 video {
     transform: scaleX(-1);
 }
 
+/* Mirroring untuk Frame Foto Hasil Tangkapan Kamera */
 .captured-frame {
     transform: scaleX(-1);
 }
 
-/* Filter Preset CSS */
-.filter-normal { filter: none; }
-.filter-vintage { filter: sepia(0.35) contrast(0.95) brightness(1.05) saturate(1.1); }
-.filter-bw { filter: grayscale(1) contrast(1.15) brightness(1.02); }
-.filter-warm { filter: saturate(1.2) sepia(0.12) brightness(1.03); }
-.filter-cool { filter: hue-rotate(10deg) saturate(1.1) brightness(1.03); }
+/* Orientasi Normal (Tanpa Mirror) Khusus Foto Hasil Unggahan Galeri */
+.uploaded-frame {
+    transform: scaleX(1) !important;
+}
 
-/* Scrollbar Styling */
+/* Heart Mask Styling via SVG Clip Path */
+.heart-shape-active {
+    clip-path: url(#heart-clip) !important;
+    -webkit-clip-path: url(#heart-clip) !important;
+}
+
+/* Filter Preset CSS */
+.filter-normal { 
+    filter: none; 
+}
+.filter-vintage { 
+    filter: sepia(0.35) contrast(0.95) brightness(1.05) saturate(1.1); 
+}
+.filter-bw { 
+    filter: grayscale(1) contrast(1.15) brightness(1.02); 
+}
+.filter-warm { 
+    filter: saturate(1.2) sepia(0.12) brightness(1.03); 
+}
+.filter-cool { 
+    filter: hue-rotate(10deg) saturate(1.1) brightness(1.03); 
+}
+
+/* Scrollbar Custom untuk Pilihan Warna Frame */
 .custom-scrollbar::-webkit-scrollbar {
     height: 4px;
     width: 4px;
@@ -34,22 +57,37 @@ video {
     background: #cbd5e1;
     border-radius: 8px;
 }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 
-/* UI Active Highlight */
+/* State Highlight Aktif untuk Tombol Filter, Shape, Template, dan Warna */
 .filter-active {
-    border-color: #475569 !important;
+    border-color: #334155 !important;
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
     font-weight: 700 !important;
+}
+
+.shape-active, .template-active {
+    border-color: #334155 !important;
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .frame-active {
     border-color: #0f172a !important;
-    box-shadow: 0 0 0 1px #0f172a;
+    box-shadow: 0 0 0 2px #0f172a;
 }
 
-.template-active {
-    border-color: #475569 !important;
+/* Transisi Halus pada Pembungkus Slot Foto */
+.slot-wrapper {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Penyesuaian Responsif pada Layar Seluler */
 @media (max-width: 768px) {
     .responsive-strip-container {
         transform: scale(0.88);

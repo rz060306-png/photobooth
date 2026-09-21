@@ -16,8 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const customTextInput = document.getElementById('custom-text-input');
     const layoutSelect = document.getElementById('layout-select');
     const timerSelect = document.getElementById('timer-select');
+    const uploadInput = document.getElementById('upload-input');
 
-    // Filter Pro Sliders
+    // Filter Sliders
     const sliderBrightness = document.getElementById('slider-brightness');
     const sliderContrast = document.getElementById('slider-contrast');
     const sliderSaturate = document.getElementById('slider-saturate');
@@ -29,15 +30,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFilter = 'filter-normal';
     let currentFrameColor = '#ffffff';
     let currentTemplate = 'classic';
+    let currentShape = 'square';
     let maxSlots = 4;
     let timerDelay = 5;
     let photosTaken = 0;
     let stream = null;
     let defaultFooterText = 'Memorable Day';
     let retakeTargetIndex = null;
+    let audioCtx = null;
     const capturedImages = [null, null, null, null];
+    const isUploadedPhoto = [false, false, false, false];
 
-    // Filter Pro Manual Values
+    // Manual Adjust Values
     let manualAdj = { brightness: 100, contrast: 100, saturate: 100 };
 
     // Set Tanggal
@@ -49,23 +53,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Audio Synth Beep & Shutter
     function playAudio(type) {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(audioCtx.destination);
 
             if (type === 'beep') {
-                osc.frequency.setValueAtTime(800, ctx.currentTime);
-                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 osc.start();
-                osc.stop(ctx.currentTime + 0.1);
+                osc.stop(audioCtx.currentTime + 0.1);
             } else if (type === 'shutter') {
                 osc.type = 'square';
-                osc.frequency.setValueAtTime(150, ctx.currentTime);
-                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 osc.start();
-                osc.stop(ctx.currentTime + 0.08);
+                osc.stop(audioCtx.currentTime + 0.08);
             }
         } catch (e) {}
     }
@@ -97,17 +106,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Pattern Mask Heart Presisi (Dihitung Sesuai Koordinat & Ukuran Slot)
+    function drawHeartMask(ctx, x, y, w, h) {
+        ctx.beginPath();
+        const topCurveHeight = h * 0.3;
+        ctx.moveTo(x + w / 2, y + topCurveHeight);
+        
+        // Sisi Kiri
+        ctx.bezierCurveTo(
+            x + w / 2, y, 
+            x, y, 
+            x, y + topCurveHeight
+        );
+        ctx.bezierCurveTo(
+            x, y + (h + topCurveHeight) / 2, 
+            x + w / 2, y + h * 0.95, 
+            x + w / 2, y + h
+        );
+
+        // Sisi Kanan
+        ctx.bezierCurveTo(
+            x + w / 2, y + h * 0.95, 
+            x + w, y + (h + topCurveHeight) / 2, 
+            x + w, y + topCurveHeight
+        );
+        ctx.bezierCurveTo(
+            x + w, y, 
+            x + w / 2, y, 
+            x + w / 2, y + topCurveHeight
+        );
+
+        ctx.closePath();
+        ctx.clip();
+    }
+
     // Update Live CSS Filter + Manual Pro Adjustment
     function updateAppliedFilter() {
-        const proFilterStr = `brightness(${manualAdj.brightness}%) contrast(${manualAdj.contrast}%) saturate(${manualAdj.saturate}%)`;
-        
         video.className = `w-full h-full object-cover ${currentFilter}`;
         video.style.filter = getCombinedFilterStyle(currentFilter);
 
         for (let i = 1; i <= 4; i++) {
             const canvas = document.getElementById(`canvas-${i}`);
             if (!canvas.classList.contains('hidden')) {
-                canvas.className = `w-full h-full captured-frame ${currentFilter}`;
+                const uploadedClass = isUploadedPhoto[i - 1] ? 'uploaded-frame' : '';
+                const heartClass = currentShape === 'heart' ? 'heart-shape-active' : '';
+                canvas.className = `w-full h-full captured-frame ${uploadedClass} ${currentFilter} ${heartClass}`;
                 canvas.style.filter = getCombinedFilterStyle(currentFilter);
             }
         }
@@ -140,6 +183,78 @@ document.addEventListener('DOMContentLoaded', () => {
             updateAppliedFilter();
         });
     });
+
+    // Event Listener Unggah Foto
+    uploadInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        let slotIdx = photosTaken < maxSlots ? photosTaken : 0;
+
+        files.slice(0, maxSlots - slotIdx).forEach((file, index) => {
+            const currentSlot = slotIdx + index;
+            if (currentSlot >= maxSlots) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    drawUploadedImageToCanvas(img, currentSlot);
+                    photosTaken = Math.max(photosTaken, currentSlot + 1);
+                    photoIndexEl.innerText = photosTaken;
+
+                    if (photosTaken >= maxSlots) {
+                        finishSession();
+                    } else {
+                        downloadBtn.disabled = false;
+                        downloadGifBtn.disabled = false;
+                        showRetakeBtns();
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        uploadInput.value = '';
+    });
+
+    function drawUploadedImageToCanvas(img, slotIdx) {
+        const targetCanvas = document.getElementById(`canvas-${slotIdx + 1}`);
+        const ctx = targetCanvas.getContext('2d');
+
+        const targetWidth = 1440;
+        const targetHeight = 1080;
+        targetCanvas.width = targetWidth;
+        targetCanvas.height = targetHeight;
+
+        const imgRatio = img.width / img.height;
+        const targetRatio = targetWidth / targetHeight;
+
+        let sWidth, sHeight, sx, sy;
+        if (imgRatio > targetRatio) {
+            sHeight = img.height;
+            sWidth = img.height * targetRatio;
+            sx = (img.width - sWidth) / 2;
+            sy = 0;
+        } else {
+            sWidth = img.width;
+            sHeight = img.width / targetRatio;
+            sx = 0;
+            sy = (img.height - sHeight) / 2;
+        }
+
+        ctx.clearRect(0, 0, targetWidth, targetHeight);
+        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+
+        capturedImages[slotIdx] = targetCanvas.toDataURL('image/png', 1.0);
+        isUploadedPhoto[slotIdx] = true;
+
+        const heartClass = currentShape === 'heart' ? 'heart-shape-active' : '';
+        targetCanvas.className = `w-full h-full captured-frame uploaded-frame ${currentFilter} ${heartClass}`;
+        targetCanvas.style.filter = getCombinedFilterStyle(currentFilter);
+        targetCanvas.classList.remove('hidden');
+    }
 
     customTextInput.addEventListener('input', (e) => {
         const text = e.target.value.trim();
@@ -185,7 +300,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Alur Sesi Foto Utama
+    function applyFrameShape(shape) {
+        currentShape = shape;
+
+        for (let i = 1; i <= 4; i++) {
+            const canvas = document.getElementById(`canvas-${i}`);
+            const parentSlot = canvas.parentElement;
+
+            if (shape === 'heart') {
+                canvas.classList.add('heart-shape-active');
+                if (parentSlot) parentSlot.classList.add('heart-shape-active');
+            } else {
+                canvas.classList.remove('heart-shape-active');
+                if (parentSlot) parentSlot.classList.remove('heart-shape-active');
+            }
+        }
+    }
+
     function startPhotobooth() {
         photosTaken = 0;
         retakeTargetIndex = null;
@@ -197,6 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         for (let i = 1; i <= maxSlots; i++) {
             document.getElementById(`canvas-${i}`).classList.add('hidden');
+            isUploadedPhoto[i - 1] = false;
+            capturedImages[i - 1] = null;
         }
         takeNextPhoto();
     }
@@ -234,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    // Single Retake Photo Slot Logic
     function startSingleRetake(slotIndex) {
         retakeTargetIndex = slotIndex;
         startBtn.disabled = true;
@@ -293,10 +425,14 @@ document.addEventListener('DOMContentLoaded', () => {
             sy = (vHeight - sHeight) / 2;
         }
 
+        ctx.clearRect(0, 0, targetWidth, targetHeight);
         ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
-        capturedImages[slotIdx] = targetCanvas.toDataURL('image/png', 1.0);
 
-        targetCanvas.className = `w-full h-full captured-frame ${currentFilter}`;
+        capturedImages[slotIdx] = targetCanvas.toDataURL('image/png', 1.0);
+        isUploadedPhoto[slotIdx] = false;
+
+        const heartClass = currentShape === 'heart' ? 'heart-shape-active' : '';
+        targetCanvas.className = `w-full h-full captured-frame ${currentFilter} ${heartClass}`;
         targetCanvas.style.filter = getCombinedFilterStyle(currentFilter);
         targetCanvas.classList.remove('hidden');
     }
@@ -322,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetPhotobooth() {
         photosTaken = 0;
+        retakeTargetIndex = null;
         photoIndexEl.innerText = '0';
         startBtn.disabled = false;
         startBtn.innerText = 'Mulai Foto';
@@ -334,6 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             canvas.classList.add('hidden');
+            isUploadedPhoto[i - 1] = false;
+            capturedImages[i - 1] = null;
         }
     }
 
@@ -371,6 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let imagesLoaded = 0;
         for (let i = 0; i < maxSlots; i++) {
+            if (!capturedImages[i]) continue;
             const img = new Image();
             img.src = capturedImages[i];
             img.onload = function () {
@@ -386,22 +526,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 mCtx.save();
-                mCtx.translate(posX + photoW, posY);
-                mCtx.scale(-1, 1);
+                
+                // Kliping Heart jika mode heart aktif
+                if (currentShape === 'heart') {
+                    drawHeartMask(mCtx, posX, posY, photoW, photoH);
+                }
+
                 mCtx.filter = getCombinedFilterStyle(currentFilter);
-                mCtx.drawImage(img, 0, 0, photoW, photoH);
+
+                if (!isUploadedPhoto[i]) {
+                    // Mirroring foto kamera
+                    mCtx.translate(posX + photoW, posY);
+                    mCtx.scale(-1, 1);
+                    mCtx.drawImage(img, 0, 0, photoW, photoH);
+                } else {
+                    // Foto Upload
+                    mCtx.drawImage(img, posX, posY, photoW, photoH);
+                }
+
                 mCtx.restore();
 
                 imagesLoaded++;
                 if (imagesLoaded === maxSlots) {
                     mCtx.filter = 'none';
-                    mCtx.fillStyle = currentFrameColor === '#1e293b' ? '#f8fafc' : '#334155';
+                    
+                    const isDarkFrame = ['#1e293b', '#590d22', '#ff4d6d'].includes(currentFrameColor);
+                    mCtx.fillStyle = isDarkFrame ? '#ffffff' : '#334155';
+                    
                     mCtx.font = 'bold 48px Arial, sans-serif';
                     mCtx.textAlign = 'center';
                     mCtx.fillText(stripFooterText.innerText.toUpperCase(), stripWidth / 2, stripHeight - 120);
 
                     mCtx.font = '28px Arial, sans-serif';
-                    mCtx.fillStyle = '#94a3b8';
+                    mCtx.fillStyle = isDarkFrame ? '#f1f5f9' : '#94a3b8';
                     mCtx.fillText(stripDateText.innerText, stripWidth / 2, stripHeight - 65);
 
                     const link = document.createElement('a');
@@ -413,73 +570,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Export Animated GIF Boomerang
-   // Export Animated GIF Boomerang (Un-mirrored)
-   // Export Animated GIF Boomerang (Un-mirrored & Efek Filter Tetap Aktif)
-    // Export Animated GIF Boomerang (HD Quality, Fixed Aspect Ratio, Un-mirrored, Filter Active)
-function downloadGIF() {
-    downloadGifBtn.disabled = true;
-    downloadGifBtn.innerText = 'Sedang Memproses GIF...';
+    // Export GIF Boomerang
+    function downloadGIF() {
+        downloadGifBtn.disabled = true;
+        downloadGifBtn.innerText = 'Sedang Memproses GIF...';
 
-    const activeImages = capturedImages.slice(0, maxSlots);
-    let flippedImages = [];
-    let processedCount = 0;
+        const activeImages = capturedImages.slice(0, maxSlots);
+        let flippedImages = [];
+        let processedCount = 0;
 
-    // Gunakan resolusi tinggi 1280x960 (Rasio 4:3 HD)
-    const exportWidth = 1280;
-    const exportHeight = 960;
+        const exportWidth = 1280;
+        const exportHeight = 960;
 
-    activeImages.forEach((imgSrc, index) => {
-        const img = new Image();
-        img.src = imgSrc;
-        img.onload = () => {
-            const tempCanvas = document.createElement('canvas');
-            const tCtx = tempCanvas.getContext('2d');
-            
-            tempCanvas.width = exportWidth;
-            tempCanvas.height = exportHeight;
+        activeImages.forEach((imgSrc, index) => {
+            if (!imgSrc) return;
+            const img = new Image();
+            img.src = imgSrc;
+            img.onload = () => {
+                const tempCanvas = document.createElement('canvas');
+                const tCtx = tempCanvas.getContext('2d');
+                
+                tempCanvas.width = exportWidth;
+                tempCanvas.height = exportHeight;
 
-            tCtx.save();
-            // 1. Terapkan Filter & Adjust Pro
-            tCtx.filter = getCombinedFilterStyle(currentFilter);
-            
-            // 2. Un-mirror (Flip Horizontal)
-            tCtx.translate(tempCanvas.width, 0);
-            tCtx.scale(-1, 1);
-            
-            // 3. Draw Foto HD (Menjaga Aspect Ratio)
-            tCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
-            tCtx.restore();
+                tCtx.save();
+                
+                if (currentShape === 'heart') {
+                    drawHeartMask(tCtx, 0, 0, exportWidth, exportHeight);
+                }
 
-            flippedImages[index] = tempCanvas.toDataURL('image/png');
-            processedCount++;
+                tCtx.filter = getCombinedFilterStyle(currentFilter);
 
-            if (processedCount === activeImages.length) {
-                // Buat Urutan Boomerang (Maju-Mundur)
-                const boomerangImages = [...flippedImages, ...flippedImages.slice().reverse().slice(1, -1)];
+                if (!isUploadedPhoto[index]) {
+                    tCtx.translate(exportWidth, 0);
+                    tCtx.scale(-1, 1);
+                    tCtx.drawImage(img, 0, 0, exportWidth, exportHeight);
+                } else {
+                    tCtx.drawImage(img, 0, 0, exportWidth, exportHeight);
+                }
 
-                gifshot.createGIF({
-                    images: boomerangImages,
-                    interval: 0.35,
-                    gifWidth: exportWidth,   // 1280px (Tetap HD)
-                    gifHeight: exportHeight, // 960px (Menjaga Rasio 4:3 agar TIDAK GEPENG)
-                    numFrames: boomerangImages.length,
-                }, function (obj) {
-                    if (!obj.error) {
-                        const link = document.createElement('a');
-                        link.download = `zeetsnap-boomerang-${Date.now()}.gif`;
-                        link.href = obj.image;
-                        link.click();
-                    } else {
-                        alert('Gagal membuat GIF Boomerang.');
-                    }
-                    downloadGifBtn.disabled = false;
-                    downloadGifBtn.innerText = '🎬 Unduh GIF Boomerang';
-                });
-            }
-        };
-    });
-}
+                tCtx.restore();
+
+                flippedImages[index] = tempCanvas.toDataURL('image/png');
+                processedCount++;
+
+                if (processedCount === activeImages.filter(Boolean).length) {
+                    const boomerangImages = [...flippedImages, ...flippedImages.slice().reverse().slice(1, -1)];
+
+                    gifshot.createGIF({
+                        images: boomerangImages,
+                        interval: 0.35,
+                        gifWidth: exportWidth,
+                        gifHeight: exportHeight,
+                        numFrames: boomerangImages.length,
+                    }, function (obj) {
+                        if (!obj.error) {
+                            const link = document.createElement('a');
+                            link.download = `zeetsnap-boomerang-${Date.now()}.gif`;
+                            link.href = obj.image;
+                            link.click();
+                        } else {
+                            alert('Gagal membuat GIF Boomerang.');
+                        }
+                        downloadGifBtn.disabled = false;
+                        downloadGifBtn.innerText = 'Unduh GIF Boomerang';
+                    });
+                }
+            };
+        });
+    }
+
     // Event Listeners: Filter Buttons
     document.querySelectorAll('.btn-filter').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -487,6 +647,19 @@ function downloadGIF() {
             e.currentTarget.classList.add('filter-active');
             currentFilter = e.currentTarget.dataset.filter;
             updateAppliedFilter();
+        });
+    });
+
+    // Event Listeners: Shape Buttons
+    document.querySelectorAll('.btn-shape').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.btn-shape').forEach(b => {
+                b.classList.remove('shape-active', 'border-stone-300', 'bg-stone-50', 'font-bold');
+                b.classList.add('border-stone-200', 'bg-white');
+            });
+            const target = e.currentTarget;
+            target.classList.add('shape-active', 'border-stone-300', 'bg-stone-50', 'font-bold');
+            applyFrameShape(target.dataset.shape);
         });
     });
 

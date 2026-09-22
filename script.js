@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
+    const introOverlay = document.getElementById('intro-overlay');
     const video = document.getElementById('video');
     const countdownEl = document.getElementById('countdown');
     const flashEl = document.getElementById('flash');
@@ -38,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let defaultFooterText = 'Memorable Day';
     let retakeTargetIndex = null;
     let audioCtx = null;
+    let activeTimerInterval = null;
     const capturedImages = [null, null, null, null];
     const isUploadedPhoto = [false, false, false, false];
 
@@ -46,9 +48,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set Tanggal
     const today = new Date();
-    stripDateText.innerText = today.toLocaleDateString('id-ID', {
-        day: '2-digit', month: '2-digit', year: 'numeric'
-    });
+    if (stripDateText) {
+        stripDateText.innerText = today.toLocaleDateString('id-ID', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+    }
+
+    // Dismiss Intro Overlay (Disesuaikan dengan CSS)
+    function hideIntroOverlay() {
+        if (introOverlay) {
+            // Memberikan waktu tahan selama 2.5 detik sebelum memudar
+            setTimeout(() => {
+                introOverlay.classList.add('fade-out');
+                // Menghapus elemen setelah animasi fade-out (1.2 detik) selesai
+                setTimeout(() => {
+                    introOverlay.style.display = 'none';
+                }, 1200);
+            }, 2500);
+        }
+    }
 
     // Audio Synth Beep & Shutter
     function playAudio(type) {
@@ -76,7 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.08);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn('Audio play error:', e);
+        }
     }
 
     // Inisialisasi Kamera
@@ -101,47 +121,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 video.srcObject = stream;
             } catch (fallbackErr) {
-                alert('Akses kamera ditolak atau tidak ditemukan.');
+                alert('Akses kamera ditolak atau perangkat kamera tidak ditemukan.');
             }
+        } finally {
+            hideIntroOverlay();
         }
     }
 
-    // Pattern Mask Heart Ukuran Lebih Besar Maksimal
+    // Pattern Mask Heart
     function drawHeartMask(ctx, x, y, w, h) {
         ctx.beginPath();
-        
         const topY = y + h * 0.18;
         const bottomY = y + h * 0.99;
         const centerX = x + w / 2;
         
         ctx.moveTo(centerX, topY);
-        
-        // Sisi Kiri
         ctx.bezierCurveTo(
             x + w * 0.12, y - h * 0.18,
             x - w * 0.35, y + h * 0.40,
-            centerX,      bottomY
+            centerX, bottomY
         );
-        
-        // Sisi Kanan
         ctx.bezierCurveTo(
             x + w * 1.35, y + h * 0.40,
             x + w * 0.88, y - h * 0.18,
-            centerX,      topY
+            centerX, topY
         );
-
         ctx.closePath();
         ctx.clip();
     }
 
     // Update Live CSS Filter + Manual Adjustment
     function updateAppliedFilter() {
-        video.className = `w-full h-full object-cover ${currentFilter}`;
-        video.style.filter = getCombinedFilterStyle(currentFilter);
+        if (video) {
+            video.className = `w-full h-full object-cover ${currentFilter}`;
+            video.style.filter = getCombinedFilterStyle(currentFilter);
+        }
 
         for (let i = 1; i <= 4; i++) {
             const canvas = document.getElementById(`canvas-${i}`);
-            if (!canvas.classList.contains('hidden')) {
+            if (canvas && !canvas.classList.contains('hidden')) {
                 const uploadedClass = isUploadedPhoto[i - 1] ? 'uploaded-frame' : '';
                 const heartClass = currentShape === 'heart' ? 'heart-shape-active' : '';
                 canvas.className = `w-full h-full captured-frame ${uploadedClass} ${currentFilter} ${heartClass}`;
@@ -180,42 +198,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Event Listener Unggah Foto
-    uploadInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files);
-        if (!files.length) return;
+    if (uploadInput) {
+        uploadInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
 
-        let slotIdx = photosTaken < maxSlots ? photosTaken : 0;
+            let slotIdx = photosTaken < maxSlots ? photosTaken : 0;
 
-        files.slice(0, maxSlots - slotIdx).forEach((file, index) => {
-            const currentSlot = slotIdx + index;
-            if (currentSlot >= maxSlots) return;
+            files.slice(0, maxSlots - slotIdx).forEach((file, index) => {
+                const currentSlot = slotIdx + index;
+                if (currentSlot >= maxSlots) return;
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    drawUploadedImageToCanvas(img, currentSlot);
-                    photosTaken = Math.max(photosTaken, currentSlot + 1);
-                    photoIndexEl.innerText = photosTaken;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        drawUploadedImageToCanvas(img, currentSlot);
+                        photosTaken = Math.max(photosTaken, currentSlot + 1);
+                        if (photoIndexEl) photoIndexEl.innerText = photosTaken;
 
-                    if (photosTaken >= maxSlots) {
-                        finishSession();
-                    } else {
-                        downloadBtn.disabled = false;
-                        downloadGifBtn.disabled = false;
-                        showRetakeBtns();
-                    }
+                        if (photosTaken >= maxSlots) {
+                            finishSession();
+                        } else {
+                            if (downloadBtn) downloadBtn.disabled = false;
+                            if (downloadGifBtn) downloadGifBtn.disabled = false;
+                            showRetakeBtns();
+                        }
+                    };
+                    img.src = event.target.result;
                 };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
+                reader.readAsDataURL(file);
+            });
 
-        uploadInput.value = '';
-    });
+            uploadInput.value = '';
+        });
+    }
 
     function drawUploadedImageToCanvas(img, slotIdx) {
         const targetCanvas = document.getElementById(`canvas-${slotIdx + 1}`);
+        if (!targetCanvas) return;
         const ctx = targetCanvas.getContext('2d');
 
         const targetWidth = 1440;
@@ -251,31 +272,43 @@ document.addEventListener('DOMContentLoaded', () => {
         targetCanvas.classList.remove('hidden');
     }
 
-    customTextInput.addEventListener('input', (e) => {
-        const text = e.target.value.trim();
-        stripFooterText.innerText = text !== '' ? text : defaultFooterText;
-    });
+    if (customTextInput) {
+        customTextInput.addEventListener('input', (e) => {
+            const text = e.target.value.trim();
+            if (stripFooterText) stripFooterText.innerText = text !== '' ? text : defaultFooterText;
+        });
+    }
 
-    layoutSelect.addEventListener('change', (e) => {
-        maxSlots = parseInt(e.target.value);
-        totalSlotsText.innerText = maxSlots;
-        
-        for (let i = 1; i <= 4; i++) {
-            const slot = document.getElementById(`canvas-${i}`).parentElement;
-            if (i <= maxSlots) {
-                slot.classList.remove('hidden');
-            } else {
-                slot.classList.add('hidden');
+    if (layoutSelect) {
+        layoutSelect.addEventListener('change', (e) => {
+            maxSlots = parseInt(e.target.value);
+            if (totalSlotsText) totalSlotsText.innerText = maxSlots;
+            
+            for (let i = 1; i <= 4; i++) {
+                const canvas = document.getElementById(`canvas-${i}`);
+                if (canvas) {
+                    const slot = canvas.parentElement;
+                    if (slot) {
+                        if (i <= maxSlots) {
+                            slot.classList.remove('hidden');
+                        } else {
+                            slot.classList.add('hidden');
+                        }
+                    }
+                }
             }
-        }
-        resetPhotobooth();
-    });
+            resetPhotobooth();
+        });
+    }
 
-    timerSelect.addEventListener('change', (e) => {
-        timerDelay = parseInt(e.target.value);
-    });
+    if (timerSelect) {
+        timerSelect.addEventListener('change', (e) => {
+            timerDelay = parseInt(e.target.value);
+        });
+    }
 
     function applyFrameTemplate(template) {
+        if (!strip || !photoSlotsContainer) return;
         strip.style.paddingTop = '';
         strip.style.paddingBottom = '';
 
@@ -300,29 +333,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 1; i <= 4; i++) {
             const canvas = document.getElementById(`canvas-${i}`);
-            const parentSlot = canvas.parentElement;
-
-            if (shape === 'heart') {
-                canvas.classList.add('heart-shape-active');
-                if (parentSlot) parentSlot.classList.add('heart-shape-active');
-            } else {
-                canvas.classList.remove('heart-shape-active');
-                if (parentSlot) parentSlot.classList.remove('heart-shape-active');
+            if (canvas) {
+                const parentSlot = canvas.parentElement;
+                if (shape === 'heart') {
+                    canvas.classList.add('heart-shape-active');
+                    if (parentSlot) parentSlot.classList.add('heart-shape-active');
+                } else {
+                    canvas.classList.remove('heart-shape-active');
+                    if (parentSlot) parentSlot.classList.remove('heart-shape-active');
+                }
             }
         }
     }
 
     function startPhotobooth() {
+        if (activeTimerInterval) clearInterval(activeTimerInterval);
         photosTaken = 0;
         retakeTargetIndex = null;
-        startBtn.disabled = true;
-        startBtn.innerText = 'Bersiap...';
-        downloadBtn.disabled = true;
-        downloadGifBtn.disabled = true;
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.innerText = 'Bersiap...';
+        }
+        if (downloadBtn) downloadBtn.disabled = true;
+        if (downloadGifBtn) downloadGifBtn.disabled = true;
         hideAllRetakeBtns();
         
         for (let i = 1; i <= maxSlots; i++) {
-            document.getElementById(`canvas-${i}`).classList.add('hidden');
+            const canvas = document.getElementById(`canvas-${i}`);
+            if (canvas) canvas.classList.add('hidden');
             isUploadedPhoto[i - 1] = false;
             capturedImages[i - 1] = null;
         }
@@ -336,26 +374,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let count = timerDelay;
-        countdownEl.classList.remove('hidden');
-        countdownEl.innerText = count;
+        if (countdownEl) {
+            countdownEl.classList.remove('hidden');
+            countdownEl.innerText = count;
+        }
         playAudio('beep');
 
-        const interval = setInterval(() => {
+        activeTimerInterval = setInterval(() => {
             count--;
             if (count > 0) {
-                countdownEl.innerText = count;
+                if (countdownEl) countdownEl.innerText = count;
                 playAudio('beep');
             } else {
-                clearInterval(interval);
-                countdownEl.classList.add('hidden');
+                clearInterval(activeTimerInterval);
+                if (countdownEl) countdownEl.classList.add('hidden');
 
                 playAudio('shutter');
-                flashEl.classList.remove('hidden');
-                setTimeout(() => flashEl.classList.add('hidden'), 150);
+                if (flashEl) {
+                    flashEl.classList.remove('hidden');
+                    setTimeout(() => flashEl.classList.add('hidden'), 150);
+                }
 
                 snapPhoto(photosTaken);
                 photosTaken++;
-                photoIndexEl.innerText = photosTaken;
+                if (photoIndexEl) photoIndexEl.innerText = photosTaken;
 
                 setTimeout(takeNextPhoto, 1200);
             }
@@ -363,29 +405,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startSingleRetake(slotIndex) {
+        if (activeTimerInterval) clearInterval(activeTimerInterval);
         retakeTargetIndex = slotIndex;
-        startBtn.disabled = true;
-        downloadBtn.disabled = true;
-        downloadGifBtn.disabled = true;
+        if (startBtn) startBtn.disabled = true;
+        if (downloadBtn) downloadBtn.disabled = true;
+        if (downloadGifBtn) downloadGifBtn.disabled = true;
         hideAllRetakeBtns();
 
         let count = timerDelay;
-        countdownEl.classList.remove('hidden');
-        countdownEl.innerText = count;
+        if (countdownEl) {
+            countdownEl.classList.remove('hidden');
+            countdownEl.innerText = count;
+        }
         playAudio('beep');
 
-        const interval = setInterval(() => {
+        activeTimerInterval = setInterval(() => {
             count--;
             if (count > 0) {
-                countdownEl.innerText = count;
+                if (countdownEl) countdownEl.innerText = count;
                 playAudio('beep');
             } else {
-                clearInterval(interval);
-                countdownEl.classList.add('hidden');
+                clearInterval(activeTimerInterval);
+                if (countdownEl) countdownEl.classList.add('hidden');
 
                 playAudio('shutter');
-                flashEl.classList.remove('hidden');
-                setTimeout(() => flashEl.classList.add('hidden'), 150);
+                if (flashEl) {
+                    flashEl.classList.remove('hidden');
+                    setTimeout(() => flashEl.classList.add('hidden'), 150);
+                }
 
                 snapPhoto(retakeTargetIndex);
                 finishSession();
@@ -395,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function snapPhoto(slotIdx) {
         const targetCanvas = document.getElementById(`canvas-${slotIdx + 1}`);
+        if (!targetCanvas) return;
         const ctx = targetCanvas.getContext('2d');
 
         const targetWidth = 1440;
@@ -433,10 +481,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function finishSession() {
-        startBtn.disabled = false;
-        startBtn.innerText = 'Mulai Foto';
-        downloadBtn.disabled = false;
-        downloadGifBtn.disabled = false;
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.innerText = 'Mulai Foto';
+        }
+        if (downloadBtn) downloadBtn.disabled = false;
+        if (downloadGifBtn) downloadGifBtn.disabled = false;
         showRetakeBtns();
     }
 
@@ -452,20 +502,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetPhotobooth() {
+        if (activeTimerInterval) clearInterval(activeTimerInterval);
         photosTaken = 0;
         retakeTargetIndex = null;
-        photoIndexEl.innerText = '0';
-        startBtn.disabled = false;
-        startBtn.innerText = 'Mulai Foto';
-        downloadBtn.disabled = true;
-        downloadGifBtn.disabled = true;
+        if (photoIndexEl) photoIndexEl.innerText = '0';
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.innerText = 'Mulai Foto';
+        }
+        if (downloadBtn) downloadBtn.disabled = true;
+        if (downloadGifBtn) downloadGifBtn.disabled = true;
         hideAllRetakeBtns();
         
         for (let i = 1; i <= 4; i++) {
             const canvas = document.getElementById(`canvas-${i}`);
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            canvas.classList.add('hidden');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.classList.add('hidden');
+            }
             isUploadedPhoto[i - 1] = false;
             capturedImages[i - 1] = null;
         }
@@ -473,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export PNG HD Canvas
     function downloadImage() {
+        if (!downloadBtn) return;
         downloadBtn.disabled = true;
         downloadBtn.innerText = 'Mengunduh...';
 
@@ -562,11 +618,13 @@ document.addEventListener('DOMContentLoaded', () => {
             mCtx.fillStyle = isDarkFrame ? '#ffffff' : '#334155';
             mCtx.font = 'bold 48px Arial, sans-serif';
             mCtx.textAlign = 'center';
-            mCtx.fillText(stripFooterText.innerText.toUpperCase(), stripWidth / 2, stripHeight - 120);
+            const footerTextVal = stripFooterText ? stripFooterText.innerText : defaultFooterText;
+            mCtx.fillText(footerTextVal.toUpperCase(), stripWidth / 2, stripHeight - 120);
 
             mCtx.font = '28px Arial, sans-serif';
             mCtx.fillStyle = isDarkFrame ? '#f1f5f9' : '#94a3b8';
-            mCtx.fillText(stripDateText.innerText, stripWidth / 2, stripHeight - 65);
+            const dateTextVal = stripDateText ? stripDateText.innerText : '';
+            mCtx.fillText(dateTextVal, stripWidth / 2, stripHeight - 65);
 
             const link = document.createElement('a');
             link.download = `zeetsnap-${currentTemplate}-${Date.now()}.png`;
@@ -585,6 +643,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export GIF Boomerang
     function downloadGIF() {
+        if (!downloadGifBtn) return;
+        if (typeof gifshot === 'undefined') {
+            alert('Library GIF (gifshot) belum dimuat.');
+            return;
+        }
+
         downloadGifBtn.disabled = true;
         downloadGifBtn.innerText = 'Sedang Memproses GIF...';
 
@@ -594,6 +658,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const exportWidth = 1280;
         const exportHeight = 960;
+
+        const validImages = activeImages.filter(Boolean);
+        if (!validImages.length) {
+            alert('Tidak ada foto untuk dibuat GIF.');
+            downloadGifBtn.disabled = false;
+            downloadGifBtn.innerText = 'Unduh GIF Boomerang';
+            return;
+        }
 
         activeImages.forEach((imgSrc, index) => {
             if (!imgSrc) return;
@@ -627,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 flippedImages[index] = tempCanvas.toDataURL('image/png');
                 processedCount++;
 
-                if (processedCount === activeImages.filter(Boolean).length) {
+                if (processedCount === validImages.length) {
                     const boomerangImages = [...flippedImages, ...flippedImages.slice().reverse().slice(1, -1)];
 
                     gifshot.createGIF({
@@ -697,10 +769,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const target = e.currentTarget;
             target.classList.add('frame-active');
             currentFrameColor = target.dataset.color;
-            defaultFooterText = target.dataset.footer;
-            strip.style.backgroundColor = currentFrameColor;
+            defaultFooterText = target.dataset.footer || defaultFooterText;
+            if (strip) strip.style.backgroundColor = currentFrameColor;
             
-            if (!customTextInput.value.trim()) {
+            if (customTextInput && !customTextInput.value.trim() && stripFooterText) {
                 stripFooterText.innerText = defaultFooterText;
             }
         });
@@ -714,10 +786,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    startBtn.addEventListener('click', startPhotobooth);
-    resetBtn.addEventListener('click', resetPhotobooth);
-    downloadBtn.addEventListener('click', downloadImage);
-    downloadGifBtn.addEventListener('click', downloadGIF);
+    if (startBtn) startBtn.addEventListener('click', startPhotobooth);
+    if (resetBtn) resetBtn.addEventListener('click', resetPhotobooth);
+    if (downloadBtn) downloadBtn.addEventListener('click', downloadImage);
+    if (downloadGifBtn) downloadGifBtn.addEventListener('click', downloadGIF);
 
     initCamera();
 });

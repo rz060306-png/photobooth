@@ -1,11 +1,69 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
+/* ==========================================
+   RESET & BASE STYLING
+   ========================================== */
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Poppins', sans-serif;
     background-color: #faf8f5;
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
 }
 
+/* ==========================================
+   INTRO / SPLASH SCREEN OVERLAY STYLING
+   ========================================== */
+#intro-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #faf8f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    visibility: visible;
+    /* Diperlama dari 0.8s menjadi 1.2s agar pudar lebih mulus */
+    transition: opacity 1.2s ease, visibility 1.2s ease;
+}
+
+#intro-overlay.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.intro-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #1c1917;
+    /* Diperlama dari 1.8s menjadi 2.2s agar ritme denyut animasi lebih rileks */
+    animation: introPulse 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes introPulse {
+    0% {
+        opacity: 0.3;
+        transform: scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1.03);
+    }
+}
+
+/* ==========================================
+   CAMERA & CANVAS MIRRORING
+   ========================================== */
 /* Mirror Preview Video Kamera agar Alami (seperti cermin) */
 video {
     transform: scaleX(-1);
@@ -21,13 +79,18 @@ video {
     transform: scaleX(1) !important;
 }
 
+/* ==========================================
+   MASK & SHAPE STYLING
+   ========================================== */
 /* Heart Mask Styling via SVG Clip Path */
 .heart-shape-active {
     clip-path: url(#heart-clip) !important;
     -webkit-clip-path: url(#heart-clip) !important;
 }
 
-/* Filter Preset CSS */
+/* ==========================================
+   PRESET FILTER CSS
+   ========================================== */
 .filter-normal { 
     filter: none; 
 }
@@ -44,7 +107,40 @@ video {
     filter: hue-rotate(10deg) saturate(1.1) brightness(1.03); 
 }
 
-/* Scrollbar Custom untuk Pilihan Warna Frame */
+/* ==========================================
+   ACTIVE STATES (HIGHLIGHT SELECTION)
+   ========================================== */
+.filter-active {
+    border-color: #334155 !important;
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+.shape-active, 
+.template-active {
+    border-color: #334155 !important;
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.frame-active {
+    border-color: #0f172a !important;
+    box-shadow: 0 0 0 2px #0f172a;
+}
+
+/* ==========================================
+   ANIMATION & TRANSITIONS
+   ========================================== */
+.slot-wrapper {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================
+   CUSTOM SCROLLBAR
+   ========================================== */
 .custom-scrollbar::-webkit-scrollbar {
     height: 4px;
     width: 4px;
@@ -61,37 +157,18 @@ video {
     background: #94a3b8;
 }
 
-/* State Highlight Aktif untuk Tombol Filter, Shape, Template, dan Warna */
-.filter-active {
-    border-color: #334155 !important;
-    background-color: #f1f5f9 !important;
-    color: #0f172a !important;
-    font-weight: 700 !important;
-}
-
-.shape-active, .template-active {
-    border-color: #334155 !important;
-    background-color: #f8fafc !important;
-    color: #0f172a !important;
-    font-weight: 700 !important;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.frame-active {
-    border-color: #0f172a !important;
-    box-shadow: 0 0 0 2px #0f172a;
-}
-
-/* Transisi Halus pada Pembungkus Slot Foto */
-.slot-wrapper {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Penyesuaian Responsif pada Layar Seluler */
+/* ==========================================
+   RESPONSIVE DESIGN (MOBILE ADAPTATION)
+   ========================================== */
 @media (max-width: 768px) {
     .responsive-strip-container {
         transform: scale(0.88);
         transform-origin: top center;
         margin-bottom: -35px;
+    }
+
+    .intro-title {
+        font-size: 1.8rem;
+        letter-spacing: 0.2em;
     }
 }
